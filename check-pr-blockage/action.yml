@@ -1,0 +1,9 @@
+name: 'Check PR for Blockage'
+description: 'Fail if the first PR comment contains a blockage notice'
+runs:
+  using: 'node20'
+  main: 'index.js'
+inputs:
+  github-token:
+    description: 'GitHub token for accessing the PR comments'
+    required: true
