@@ -1,12 +1,9 @@
-
 # Custom gitignores
 
 .DS_Store
 logs/
 
-
 # Covers VSCode
-**/node_modules
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
