@@ -1,0 +1,16 @@
+name: 'Check Fork Status and Create PR'
+description: 'Checks if the repository is a fork and creates a PR with fork status.'
+runs:
+  using: 'node20'
+  main: 'index.js'
+inputs:
+  github-token:
+    description: 'GitHub token for authentication'
+    required: true
+  excluded-repos:
+    description: 'Comma-separated list of repositories to exclude'
+    required: true
+    default: ''
+outputs:
+  pr-url:
+    description: 'URL of the created Pull Request'
