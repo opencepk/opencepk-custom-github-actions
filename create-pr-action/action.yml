@@ -15,6 +15,18 @@ inputs:
     description: 'Path to the file containing the UPSTREAM file'
     required: false
     default: '.github/UPSTREAM'
+  new-branch-name:
+    description: 'Name of the new branch to create'
+    required: false
+    default: 'update-fork-status2'
+  target-branch:
+    description: 'Name of the target branch to create the PR against'
+    required: false
+    default: 'main'
+  bot-commit-message:
+    description: 'Commit message for the bot commit'
+    required: false
+    default: 'Automatically add UPSTREAM file'
 outputs:
   pr-url:
     description: 'URL of the created Pull Request'
