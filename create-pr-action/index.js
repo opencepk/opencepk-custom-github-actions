@@ -149,7 +149,11 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
 
   } catch (error) {
     core.info(`Failed to create PR: ${error.message}`);
-    core.setFailed(`Failed to create PR: ${error.message}`);
+    if(error.message && error.message.includes('A pull request already exists')) {
+      core.warning(`Failed to create PR: ${error.message}`);
+    } else {
+      core.setFailed(`Failed to create PR: ${error.message}`);
+    }
     return { url: null, number: null };
   }
 }
