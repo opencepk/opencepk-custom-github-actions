@@ -12,29 +12,28 @@ async function run() {
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
 
-    console.log(`create-pr-action started for repo: ${owner}/${repo}`);
+    core.info(`create-pr-action started for repo: ${owner}/${repo}`);
 
     const repoFullName = `${owner}/${repo}`;
-    console.log(`Fetching fork parent repo info for: ${repoFullName}`);
+    core.info(`Fetching fork parent repo info for: ${repoFullName}`);
     const forkStatus = await fetchForkParentRepoInfo(repoFullName, token, excludedRepos);
 
     if (forkStatus !== '{}') {
-      console.log(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
+      core.info(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
       const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
       if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
-        console.log(`PR created: ${prUrl}`);
-
+        core.info(`PR created: ${prUrl}`);
         const blockMessage = `Blocked by #${prNumber}`;
         await updateOtherPrs(owner, repo, prNumber, blockMessage, octokit);
       } else {
-        console.log('Failed to create PR due to an error.');
+        core.error('Failed to create PR due to an error.');
       }
     } else {
-      console.log('Repository is not a fork or is the specified repository. No PR created.');
+      core.info('Repository is not a fork or is the specified repository. No PR created.');
     }
   } catch (error) {
-    console.log(`Action failed with error: ${error}`);
+    core.error(`Action failed with error: ${error}`);
     core.setFailed(`Action failed with error: ${error}`);
   }
 }
@@ -42,7 +41,8 @@ async function run() {
 async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   const fetch = (await import('node-fetch')).default;
   const api_url = `https://api.github.com/repos/${repoFullName}`;
-  console.log(`Fetching repo info from GitHub API: ${api_url}`);
+  core.info(`Fetching repo info from GitHub API: ${api_url}`);
+
   const response = await fetch(api_url, {
     headers: {
       Accept: 'application/vnd.github+json',
@@ -53,14 +53,14 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   const data = await response.json();
   if (data.fork) {
     const parentName = data.parent.full_name;
-    console.log(`Repo is a fork. Parent repo is: ${parentName}`);
+    core.info(`Repo is a fork. Parent repo is: ${parentName}`);
     if (excludedRepos.includes(repoFullName)) {
       return '{}';
     } else {
       return `{"parent": "${parentName}"}`;
     }
   }
-  console.log('Repo is not a fork.');
+  core.info('Repo is not a fork.');
   return '{}';
 }
 
@@ -71,7 +71,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
   const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
 
-  console.log(`Starting PR creation process for ${repoFullName}`);
+  core.info(`Starting PR creation process for ${repoFullName}`);
 
   try {
     let branchExists = true;
@@ -81,11 +81,11 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
         repo,
         branch: newBranch,
       });
-      console.log(`Branch ${newBranch} already exists.`);
+      core.info(`Branch ${newBranch} already exists.`);
     } catch (error) {
       if (error.status === 404) {
         branchExists = false;
-        console.log(`Branch ${newBranch} does not exist. Creating new branch.`);
+        core.info(`Branch ${newBranch} does not exist. Creating new branch.`);
         const { data: baseBranchData } = await octokit.rest.repos.getBranch({
           owner,
           repo,
@@ -99,7 +99,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
           ref: `refs/heads/${newBranch}`,
           sha: branchSha,
         });
-        console.log(`Branch ${newBranch} created successfully.`);
+        core.info(`Branch ${newBranch} created successfully.`);
       } else {
         throw error;
       }
@@ -141,14 +141,14 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
       title: commitMessage,
       head: newBranch,
       base: targetBranch,
-      body: 'Automatically updating fork status',
+      body: commitMessage,
     });
 
-    console.log(`PR created: ${pr.html_url}`);
+    core.info(`PR created: ${pr.html_url}`);
     return { url: pr.html_url, number: pr.number };
 
   } catch (error) {
-    console.log(`Failed to create PR: ${error.message}`);
+    core.info(`Failed to create PR: ${error.message}`);
     core.setFailed(`Failed to create PR: ${error.message}`);
     return { url: null, number: null };
   }
@@ -167,31 +167,31 @@ async function updateOtherPrs(owner, repo, excludedPrNumber, newBlockRefNum, oct
 
     for (const pr of prs) {
       if (pr.number !== excludedPrNumber) {
-        console.log(`Checking PR #${pr.number} with body: ${pr.body}`);
+        core.info(`Checking PR #${pr.number} with body: ${pr.body}`);
         let newBody;
         // Improved regex to match variations in formatting
         const blockedByRegex = /Blocked by *#\s*\d+/g;
         let existingBlockMessages = null;
-        console.log(`PR body is xxxx: ${pr.body}`);
+        core.info(`PR body is: ${pr.body}`);
         if(!pr.body || pr.body === '') {
           existingBlockMessages = false;
           } else {
             existingBlockMessages = pr.body.match(blockedByRegex);
           }
         
-        console.log(`Existing block message match for PR #${pr.number}: ${existingBlockMessages}`);
+        core.info(`Existing block message match for PR #${pr.number}: ${existingBlockMessages}`);
 
         if (existingBlockMessages && existingBlockMessages.length > 0) {
-          console.log(`Adding new block message: ${newBlockMessage}`);
-          console.log(`PR body exists and is : ${pr.body}`);
+          core.info(`Adding new block message: ${newBlockMessage}`);
+          core.info(`PR body exists and is : ${pr.body}`);
           // Replace the first occurrence of the block message
-          console.log(`Replacing ${existingBlockMessages} with ${newBlockMessage}`);
+          core.info(`Replacing ${existingBlockMessages} with ${newBlockMessage}`);
           newBody = pr.body.replace(existingBlockMessages, newBlockMessage);
           // Remove any additional block messages that might exist
           newBody = newBody.replace(new RegExp(existingBlockMessages, 'g'), '');
         } else {
-          console.log(`Adding new block message: ${newBlockMessage}`);
-          console.log(`PR body is : ${pr.body}`);
+          core.info(`Adding new block message: ${newBlockMessage}`);
+          core.info(`PR body is : ${pr.body}`);
           if(!pr.body || pr.body === '') {
           newBody = `${newBlockMessage}`;
           } else {
@@ -199,14 +199,14 @@ async function updateOtherPrs(owner, repo, excludedPrNumber, newBlockRefNum, oct
           }
         }
 
-        console.log(`Updating PR #${pr.number} body to: ${newBody}`);
+        core.info(`Updating PR #${pr.number} body to: ${newBody}`);
         await updatePrBody(owner, repo, pr.number, newBody, octokit);
-        console.log(`Updated PR #${pr.number} body.`);
+        core.info(`Updated PR #${pr.number} body.`);
         await postCommentToPr(owner, repo, pr.number, `This PR is now ${newBlockMessage}.`, octokit);
       }
     }
   } catch (error) {
-    console.log(`Failed to update other PRs: ${error.message}`);
+    console.error(`Failed to update other PRs: ${error.message}`);
     core.setFailed(`Failed to update other PRs: ${error.message}`);
   }
 }
