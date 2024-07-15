@@ -171,13 +171,21 @@ async function updateOtherPrs(owner, repo, excludedPrNumber, newBlockRefNum, oct
         console.log(`Existing block message match for PR #${pr.number}: ${existingBlockMessages}`);
 
         if (existingBlockMessages && existingBlockMessages.length > 0) {
+          console.log(`Adding new block message: ${newBlockMessage}`);
+          console.log(`PR body exists and is : ${pr.body}`);
           // Replace the first occurrence of the block message
           console.log(`Replacing ${existingBlockMessages} with ${newBlockMessage}`);
           newBody = pr.body.replace(existingBlockMessages, newBlockMessage);
           // Remove any additional block messages that might exist
           newBody = newBody.replace(new RegExp(existingBlockMessages, 'g'), '');
         } else {
-          newBody = `${pr.body}\n\n${newBlockMessage}`;
+          console.log(`Adding new block message: ${newBlockMessage}`);
+          console.log(`PR body is : ${pr.body}`);
+          if(!pr.body || pr.body === '') {
+          newBody = `${newBlockMessage}`;
+          } else {
+            newBody = `${pr.body}\n\n${newBlockMessage}`;
+          }
         }
 
         console.log(`Updating PR #${pr.number} body to: ${newBody}`);
