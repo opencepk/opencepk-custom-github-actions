@@ -7,7 +7,7 @@ async function run() {
     const excludedRepos = core.getInput('excluded-repos').split(',').map(repo => repo.trim());
     const upstreamFilePath = core.getInput('upstream-file-path')? core.getInput('upstream-file-path') : '.github/UPSTREAM';
     const newBranchName = core.getInput('new-branch-name')? core.getInput('new-branch-name') : 'update-fork-status2';
-    const targetBranch = core.getInput('target-branch')? core.getInput('target-branch') : 'main';
+    const targetBranchToMergeTo = core.getInput('target-branch')? core.getInput('target-branch') : 'main';
     const botCommitMessage = core.getInput('bot-commit-message')? core.getInput('bot-commit-message') : 'Automatically add UPSTREAM file';
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
@@ -20,7 +20,7 @@ async function run() {
 
     if (forkStatus !== '{}') {
       console.log(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
-      const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranch, botCommitMessage);
+      const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
       if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
         console.log(`PR created: ${prUrl}`);
@@ -64,11 +64,11 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   return '{}';
 }
 
-async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranch, botCommitMessage) {
+async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage) {
   const [owner, repo] = repoFullName.split('/');
   const newBranch = newBranchName;
   const fileName = upstreamFilePath;
-  const targetBranch = targetBranch;
+  const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
 
   console.log(`Starting PR creation process for ${repoFullName}`);
