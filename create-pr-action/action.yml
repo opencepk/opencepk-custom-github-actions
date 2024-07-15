@@ -11,6 +11,10 @@ inputs:
     description: 'Comma-separated list of repositories to exclude'
     required: true
     default: ''
+  upstream-file-path:
+    description: 'Path to the file containing the UPSTREAM file'
+    required: false
+    default: '.github/UPSTREAM'
 outputs:
   pr-url:
     description: 'URL of the created Pull Request'

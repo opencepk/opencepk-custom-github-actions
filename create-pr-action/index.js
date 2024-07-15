@@ -5,10 +5,11 @@ async function run() {
   try {
     const token = core.getInput('github-token', { required: true });
     const excludedRepos = core.getInput('excluded-repos').split(',').map(repo => repo.trim());
+    const upstreamFilePath = core.getInput('upstream-file-path')? core.getInput('upstream-file-path') : '.github/UPSTREAM';
     const octokit = github.getOctokit(token);
     const { owner, repo } = github.context.repo;
 
-    console.log(`Action started for repo: ${owner}/${repo}`);
+    console.log(`create-pr-action started for repo: ${owner}/${repo}`);
 
     const repoFullName = `${owner}/${repo}`;
     console.log(`Fetching fork parent repo info for: ${repoFullName}`);
@@ -49,7 +50,7 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   const data = await response.json();
   if (data.fork) {
     const parentName = data.parent.full_name;
-    console.log(`Repo is a fork. Parent repo: ${parentName}`);
+    console.log(`Repo is a fork. Parent repo is: ${parentName}`);
     if (excludedRepos.includes(repoFullName)) {
       return '{}';
     } else {
@@ -60,10 +61,10 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   return '{}';
 }
 
-async function createPr(repoFullName, forkStatus, token, octokit) {
+async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath) {
   const [owner, repo] = repoFullName.split('/');
   const newBranch = `update-fork-status-2`;
-  const fileName = '.upstream';
+  const fileName = upstreamFilePath;
   const targetBranch = 'main';
   const commitMessage = 'Update fork status';
 
