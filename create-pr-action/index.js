@@ -20,12 +20,14 @@ async function run() {
 
     if (forkStatus !== '{}') {
       core.info(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
-      const { url: prUrl, number: prNumber, status_code } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
+      const { url: prUrl, number: prNumber, status_code, upstreamFileAlreadyExists } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
       if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
         core.info(`PR created: ${prUrl}`);
         const blockMessage = `Blocked by #${prNumber}`;
         await updateOtherPrs(owner, repo, prNumber, blockMessage, octokit);
+      } else if (upstreamFileAlreadyExists) {
+        core.info('.github/UPSTREAM file already exists in the target branch. No PR created.');
       } else if (status_code && status_code === 409) {
         core.info('PR already exists please review and merge the existing one.');
       }
@@ -73,6 +75,30 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
   const fileName = upstreamFilePath;
   const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
+
+  core.info(`Checking if ${fileName} exists in ${targetBranch} branch of ${repoFullName}`);
+
+  try {
+    // Check if the file exists in the target branch
+    await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path: fileName,
+      ref: targetBranch,
+    });
+
+    // If the request succeeds, the file exists
+    core.info(`${fileName} already exists in ${targetBranch} branch. No PR will be created.`);
+    return { url: null, number: null, upstreamFileAlreadyExists: true };
+  } catch (error) {
+    if (error.status === 404) {
+      // File does not exist, proceed with PR creation
+      core.info(`${fileName} does not exist in ${targetBranch} branch. Proceeding with PR creation.`);
+    } else {
+      // An error other than 404 occurred
+      throw error;
+    }
+  }
 
   core.info(`Starting PR creation process for ${repoFullName}`);
 
