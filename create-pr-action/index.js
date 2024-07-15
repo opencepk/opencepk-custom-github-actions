@@ -110,7 +110,24 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
         repo,
         branch: newBranch,
       });
-      core.info(`Branch ${newBranch} already exists.`);
+      core.info(`Branch ${newBranch} already exists. Synchronizing with ${targetBranch}.`);
+
+      // Fetch the latest commit SHA from targetBranch
+      const { data: baseBranchData } = await octokit.rest.repos.getBranch({
+        owner,
+        repo,
+        branch: targetBranch,
+      });
+      const baseBranchSha = baseBranchData.commit.sha;
+
+      // Update newBranch's reference to synchronize it with targetBranch
+      await octokit.rest.git.updateRef({
+        owner,
+        repo,
+        ref: `heads/${newBranch}`,
+        sha: baseBranchSha,
+      });
+      core.info(`Branch ${newBranch} synchronized successfully with ${targetBranch}.`);
     } catch (error) {
       if (error.status === 404) {
         branchExists = false;
