@@ -17,7 +17,7 @@ async function run() {
 
     if (forkStatus !== '{}') {
       console.log(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
-      const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit);
+      const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath);
       if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
         console.log(`PR created: ${prUrl}`);
