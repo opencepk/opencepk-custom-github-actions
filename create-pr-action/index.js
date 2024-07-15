@@ -167,7 +167,7 @@ async function updateOtherPrs(owner, repo, excludedPrNumber, newBlockRefNum, oct
         let newBody;
         // Improved regex to match variations in formatting
         const blockedByRegex = /Blocked by *#\s*\d+/g;
-        const existingBlockMessages = null;
+        let existingBlockMessages = null;
         console.log(`PR body is xxxx: ${pr.body}`);
         if(!pr.body || pr.body === '') {
           existingBlockMessages = false;
