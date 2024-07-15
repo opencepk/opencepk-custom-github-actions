@@ -20,13 +20,16 @@ async function run() {
 
     if (forkStatus !== '{}') {
       core.info(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
-      const { url: prUrl, number: prNumber } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
+      const { url: prUrl, number: prNumber, status_code } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
       if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
         core.info(`PR created: ${prUrl}`);
         const blockMessage = `Blocked by #${prNumber}`;
         await updateOtherPrs(owner, repo, prNumber, blockMessage, octokit);
-      } else {
+      } else if (status_code && status_code === 409) {
+        core.info('PR already exists please review and merge the existing one.');
+      }
+      else {
         core.error('Failed to create PR due to an error.');
       }
     } else {
@@ -151,6 +154,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
     core.info(`Failed to create PR: ${error.message}`);
     if(error.message && error.message.includes('A pull request already exists')) {
       core.warning(`Failed to create PR: ${error.message}`);
+      return { url: null, number: null, status_code: 409 };
     } else {
       core.setFailed(`Failed to create PR: ${error.message}`);
     }
