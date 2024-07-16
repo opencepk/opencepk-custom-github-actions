@@ -69,141 +69,108 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
   return '{}';
 }
 
-async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage) {
+async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, 
+  newBranchName, targetBranchToMergeTo, botCommitMessage) {
+  // Split the full repository name into owner and repo
   const [owner, repo] = repoFullName.split('/');
   const newBranch = newBranchName;
   const fileName = upstreamFilePath;
   const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
 
+  // Check if the file exists in the target branch
   core.info(`Checking if ${fileName} exists in ${targetBranch} branch of ${repoFullName}`);
-
   try {
-    // Check if the file exists in the target branch
     await octokit.rest.repos.getContent({
       owner,
       repo,
       path: fileName,
       ref: targetBranch,
     });
-
-    // If the request succeeds, the file exists
     core.info(`${fileName} already exists in ${targetBranch} branch. No PR will be created.`);
     return { url: null, number: null, upstreamFileAlreadyExists: true };
   } catch (error) {
     if (error.status === 404) {
-      // File does not exist, proceed with PR creation
       core.info(`${fileName} does not exist in ${targetBranch} branch. Proceeding with PR creation.`);
     } else {
-      // An error other than 404 occurred
       throw error;
     }
   }
-  
 
-  core.info(`Starting PR creation process for ${repoFullName}`);
-
+  // Check for the existence of the new branch and any open PRs from it to the target branch
+  core.info(`Checking if ${newBranch} exists and if there's an open PR from ${newBranch} to ${targetBranch}`);
   try {
-    let branchExists = true;
-    try {
-      await octokit.rest.repos.getBranch({
-        owner,
-        repo,
-        branch: newBranch,
-      });
-      core.info(`Branch ${newBranch} already exists. Synchronizing with ${targetBranch}.`);
+    await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: newBranch,
+    });
 
-      // Fetch the latest commit SHA from targetBranch
-      const { data: baseBranchData } = await octokit.rest.repos.getBranch({
-        owner,
-        repo,
-        branch: targetBranch,
-      });
-      const baseBranchSha = baseBranchData.commit.sha;
+    const { data: pullRequests } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: 'open',
+      head: `${owner}:${newBranch}`,
+      base: targetBranch,
+    });
 
-      // Update newBranch's reference to synchronize it with targetBranch
-      await octokit.rest.git.updateRef({
+    if (pullRequests.length > 0) {
+      core.info(`An open PR from ${newBranch} to ${targetBranch} already exists. No further action taken.`);
+      return { url: null, number: null, branchExists: true, openPrExists: true };
+    } else {
+      core.info(`No open PR from ${newBranch} to ${targetBranch}. Deleting and recreating ${newBranch} from ${targetBranch}.`);
+      await octokit.rest.git.deleteRef({
         owner,
         repo,
         ref: `heads/${newBranch}`,
-        sha: baseBranchSha,
       });
-      core.info(`Branch ${newBranch} synchronized successfully with ${targetBranch}.`);
-    } catch (error) {
-      if (error.status === 404) {
-        branchExists = false;
-        core.info(`Branch ${newBranch} does not exist. Creating new branch.`);
-        const { data: baseBranchData } = await octokit.rest.repos.getBranch({
-          owner,
-          repo,
-          branch: targetBranch,
-        });
-        const branchSha = baseBranchData.commit.sha;
-
-        await octokit.rest.git.createRef({
-          owner,
-          repo,
-          ref: `refs/heads/${newBranch}`,
-          sha: branchSha,
-        });
-        core.info(`Branch ${newBranch} created successfully.`);
-      } else {
-        throw error;
-      }
     }
-
-    let fileSha = '';
-    if (branchExists) {
-      try {
-        const { data: fileData } = await octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: fileName,
-          ref: newBranch,
-        });
-        fileSha = fileData.sha;
-      } catch (error) {
-        if (error.status !== 404) {
-          throw error; // Rethrow if error is not due to file non-existence
-        }
-      }
-    }
-
-    const contentEncoded = Buffer.from(forkStatus).toString('base64');
-    const fileParams = {
-      owner,
-      repo,
-      path: fileName,
-      message: commitMessage,
-      content: contentEncoded,
-      branch: newBranch,
-    };
-    if (fileSha) fileParams.sha = fileSha; // Only include SHA if file exists
-
-    await octokit.rest.repos.createOrUpdateFileContents(fileParams);
-
-    const { data: pr } = await octokit.rest.pulls.create({
-      owner,
-      repo,
-      title: commitMessage,
-      head: newBranch,
-      base: targetBranch,
-      body: commitMessage,
-    });
-
-    core.info(`PR created: ${pr.html_url}`);
-    return { url: pr.html_url, number: pr.number };
-
   } catch (error) {
-    core.info(`Failed to create PR: ${error.message}`);
-    if(error.message && error.message.includes('A pull request already exists')) {
-      core.warning(`Failed to create PR: ${error.message}`);
-      return { url: null, number: null, status_code: 409 };
-    } else {
-      core.setFailed(`Failed to create PR: ${error.message}`);
+    if (error.status !== 404) {
+      throw error;
     }
-    return { url: null, number: null };
+    core.info(`Branch ${newBranch} does not exist. Proceeding to create it.`);
   }
+
+  // Create or recreate the branch from the target branch
+  const { data: baseBranchData } = await octokit.rest.repos.getBranch({
+    owner,
+    repo,
+    branch: targetBranch,
+  });
+  const branchSha = baseBranchData.commit.sha;
+
+  await octokit.rest.git.createRef({
+    owner,
+    repo,
+    ref: `refs/heads/${newBranch}`,
+    sha: branchSha,
+  });
+  core.info(`Branch ${newBranch} created successfully from ${targetBranch}.`);
+
+  // Create or update the file in the new branch
+  const contentEncoded = Buffer.from(forkStatus).toString('base64');
+  await octokit.rest.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path: fileName,
+    message: commitMessage,
+    content: contentEncoded,
+    branch: newBranch,
+  });
+
+  // Create a pull request from the new branch to the target branch
+  const { data: pr } = await octokit.rest.pulls.create({
+    owner,
+    repo,
+    title: commitMessage,
+    head: newBranch,
+    base: targetBranch,
+    body: commitMessage,
+  });
+
+  core.info(`PR created: ${pr.html_url}`);
+  return { url: pr.html_url, number: pr.number };
 }
 
 
