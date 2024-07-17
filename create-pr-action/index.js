@@ -80,6 +80,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
   const fileName = upstreamFilePath;
   const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
+  let upstreamFileContentOutdated = false;
 
   // Check if the file exists in the target branch
   core.info(`Checking if ${fileName} exists in ${targetBranch} branch of ${repoFullName}`);
@@ -91,7 +92,17 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
       ref: targetBranch,
     });
     core.info(`${fileName} already exists in ${targetBranch} branch. No PR will be created.`);
-    return { url: null, number: null, upstreamFileAlreadyExists: true };
+      // Decode the content from base64
+    const existingContent = Buffer.from(fileContent.content, 'base64').toString('utf-8');
+
+    if (existingContent.trim() === forkStatus.trim()) {
+      core.info(`The content of ${fileName} in ${targetBranch} branch is the same as the provided content. No PR will be created.`);
+      return { url: null, number: null, upstreamFileAlreadyExists: true };
+    } else {
+      upstreamFileContentOutdated = true;
+      core.info(`The content of ${fileName} in ${targetBranch} branch is different. Proceeding with update and upstreamFileContentOutdated is set to ${upstreamFileContentOutdated}.`);
+
+    }
   } catch (error) {
     if (error.status === 404) {
       core.info(`${fileName} does not exist in ${targetBranch} branch. Proceeding with PR creation.`);
@@ -120,9 +131,9 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
     const matchingPRs = pullRequests.filter(pr => pr.title === commitMessage);
     
     // Debugging: Log the filtered PRs
-    console.log(`Matching PRs with title '${commitMessage}':`, matchingPRs);
+    core.info(`Matching PRs with title '${commitMessage}':`, matchingPRs);
 
-    if (matchingPRs.length > 0) {
+    if (matchingPRs.length > 0 && !upstreamFileContentOutdated) {
       core.info(`An open PR from ${newBranch} to ${targetBranch} already exists. No further action taken.`);
       return { url: matchingPRs[0].html_url, number: matchingPRs[0].number, branchExists: true, openPrExists: true };
     } else {
