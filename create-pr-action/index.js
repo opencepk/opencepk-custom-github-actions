@@ -110,7 +110,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
       owner,
       repo,
       state: 'open',
-      head: `${owner}:${newBranch}`,
+      head: `${newBranch}`,
       base: targetBranch,
     });
 
