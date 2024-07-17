@@ -124,7 +124,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
 
     if (matchingPRs.length > 0) {
       core.info(`An open PR from ${newBranch} to ${targetBranch} already exists. No further action taken.`);
-      return { url: matchingPRs[0].url, number: matchingPRs[0].number, branchExists: true, openPrExists: true };
+      return { url: matchingPRs[0].html_url, number: matchingPRs[0].number, branchExists: true, openPrExists: true };
     } else {
       core.info(`No open PR from ${newBranch} to ${targetBranch}. Deleting and recreating ${newBranch} from ${targetBranch}.`);
       await octokit.rest.git.deleteRef({
