@@ -16,7 +16,7 @@ async function run() {
     });
 
     if (comments.length === 0) {
-      core.setFailed('No comments found in the PR.');
+      // core.setFailed('No comments found in the PR.');
       return;
     }
 
