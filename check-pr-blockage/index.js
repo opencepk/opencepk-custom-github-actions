@@ -16,6 +16,7 @@ async function run() {
     });
 
     if (comments.length === 0) {
+      core.info(`No comments found in the PR #${currentPRNumber}.`);
       // core.setFailed('No comments found in the PR.');
       return;
     }
