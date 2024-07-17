@@ -20,8 +20,11 @@ async function run() {
 
     if (forkStatus !== '{}') {
       core.info(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
-      const { url: prUrl, number: prNumber, status_code, upstreamFileAlreadyExists } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
-      if (prUrl && prNumber) {
+      const { url: prUrl, number: prNumber, status_code, upstreamFileAlreadyExists, openPrExists } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
+      if(openPrExists) {
+        core.info(`PR to update upstream already exists: ${url}. No PR created.`);
+      }
+      else if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
         core.info(`PR created: ${prUrl}`);
         const blockMessage = `Blocked by #${prNumber}`;
@@ -121,7 +124,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
 
     if (matchingPRs.length > 0) {
       core.info(`An open PR from ${newBranch} to ${targetBranch} already exists. No further action taken.`);
-      return { url: null, number: null, branchExists: true, openPrExists: true };
+      return { url: matchingPRs[0].url, number: matchingPRs[0].number, branchExists: true, openPrExists: true };
     } else {
       core.info(`No open PR from ${newBranch} to ${targetBranch}. Deleting and recreating ${newBranch} from ${targetBranch}.`);
       await octokit.rest.git.deleteRef({
