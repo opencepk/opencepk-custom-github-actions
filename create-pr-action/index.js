@@ -106,15 +106,19 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
       branch: newBranch,
     });
 
+    // Debugging: Log the variables to ensure they have the expected values
+    console.log(`Owner: ${owner}, Repo: ${repo}, New Branch: ${newBranch}, Target Branch: ${targetBranch}`);
+
     const { data: pullRequests } = await octokit.rest.pulls.list({
       owner,
       repo,
       state: 'open',
-      head: `${newBranch}`,
+      head: `${owner}:${newBranch}`, // Ensure this is correctly formatted
       base: targetBranch,
     });
 
-    core.info(`list of open pull reqs are:  ${pullRequests}   ${targetBranch} ${owner}:${newBranch}`);
+    // Use JSON.stringify for better visibility in logs
+    core.info(`List of open pull reqs are: ${JSON.stringify(pullRequests)} for ${targetBranch} from ${owner}:${newBranch}`);
 
     if (pullRequests.length > 0) {
       core.info(`An open PR from ${newBranch} to ${targetBranch} already exists. No further action taken.`);
