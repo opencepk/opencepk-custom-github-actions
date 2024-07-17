@@ -22,7 +22,7 @@ async function run() {
       core.info(`Creating PR for repo: ${repoFullName} with fork status: ${forkStatus}`);
       const { url: prUrl, number: prNumber, status_code, upstreamFileAlreadyExists, openPrExists } = await createPr(repoFullName, forkStatus, token, octokit, upstreamFilePath, newBranchName, targetBranchToMergeTo, botCommitMessage);
       if(openPrExists) {
-        core.info(`PR to update upstream already exists: ${url}. No PR created.`);
+        core.info(`PR to update upstream already exists: ${prUrl}. No PR created.`);
       }
       else if (prUrl && prNumber) {
         core.setOutput('pr-url', prUrl);
