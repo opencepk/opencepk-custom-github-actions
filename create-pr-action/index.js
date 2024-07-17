@@ -65,7 +65,12 @@ async function fetchForkParentRepoInfo(repoFullName, token, excludedRepos) {
     if (excludedRepos.includes(repoFullName)) {
       return '{}';
     } else {
-      return `{"parent": "${parentName}"}`;
+      if(data.private) {
+        return `git@github.com:${parentName}.git`;
+      } else {
+        return `https://github.com/${parentName}.git`;
+      }
+      
     }
   }
   core.info('Repo is not a fork.');
