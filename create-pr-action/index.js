@@ -85,15 +85,15 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
   // Check if the file exists in the target branch
   core.info(`Checking if ${fileName} exists in ${targetBranch} branch of ${repoFullName}`);
   try {
-    await octokit.rest.repos.getContent({
+    const response = await octokit.rest.repos.getContent({
       owner,
       repo,
       path: fileName,
       ref: targetBranch,
     });
-    core.info(`${fileName} already exists in ${targetBranch} branch. No PR will be created.`);
+    core.info(`${fileName} already exists in ${targetBranch} branch with content: ${response.data.content}`);
       // Decode the content from base64
-    const existingContent = Buffer.from(fileContent.content, 'base64').toString('utf-8');
+    const existingContent = Buffer.from(response.data.content, 'base64').toString('utf-8');
 
     if (existingContent.trim() === forkStatus.trim()) {
       core.info(`The content of ${fileName} in ${targetBranch} branch is the same as the provided content. No PR will be created.`);
