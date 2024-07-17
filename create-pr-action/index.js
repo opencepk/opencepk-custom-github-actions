@@ -81,7 +81,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
   const targetBranch = targetBranchToMergeTo;
   const commitMessage = botCommitMessage;
   let upstreamFileContentOutdated = false;
-
+  let existingFileSha;
   // Check if the file exists in the target branch
   core.info(`Checking if ${fileName} exists in ${targetBranch} branch of ${repoFullName}`);
   try {
@@ -94,6 +94,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
     core.info(`${fileName} already exists in ${targetBranch} branch with content: ${response.data.content}`);
       // Decode the content from base64
     const existingContent = Buffer.from(response.data.content, 'base64').toString('utf-8');
+    existingFileSha = response.data.sha;
 
     if (existingContent.trim() === forkStatus.trim()) {
       core.info(`The content of ${fileName} in ${targetBranch} branch is the same as the provided content. No PR will be created.`);
@@ -176,6 +177,7 @@ async function createPr(repoFullName, forkStatus, token, octokit, upstreamFilePa
     message: commitMessage,
     content: contentEncoded,
     branch: newBranch,
+    sha: existingFileSha
   });
 
   // Create a pull request from the new branch to the target branch
